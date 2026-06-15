@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🍄 AI Quest — Know Your AI!</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #5c94fc;
+    --sky2: #3a70d0;
+    --ground: #c84b0f;
+    --ground2: #8a3000;
+    --block: #e8a634;
+    --block-dark: #b07820;
+    --block-light: #f8d070;
+    --pipe: #3ca038;
+    --pipe-dark: #2a7028;
+    --coin: #f8c42a;
+    --white: #f8f8f8;
+    --red: #d03020;
+    --green: #3cb83c;
+    --purple: #8844cc;
+    --text-dark: #181018;
+    --correct: #3cb83c;
+    --wrong: #d03020;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+
+  body {
+    background: var(--sky);
+    font-family: 'Press Start 2P', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    padding-bottom: 80px;
+  }
+
+  .clouds { position: fixed; top: 0; left: 0; width: 100%; height: 120px; z-index: 0; pointer-events: none; }
+  .cloud {
+    position: absolute; background: var(--white); border-radius: 0;
+    clip-path: polygon(8px 100%, 0 100%, 0 50%, 16px 50%, 16px 25%, 32px 25%, 32px 0, 64px 0, 64px 25%, 80px 25%, 80px 50%, 96px 50%, 96px 100%);
+    opacity: .9; animation: cloudMove linear infinite;
+  }
+  .c1 { width: 96px; height: 48px; top: 20px; animation-duration: 40s; animation-delay: 0s; }
+  .c2 { width: 64px; height: 32px; top: 50px; animation-duration: 55s; animation-delay: -20s; transform: scale(.7); }
+  .c3 { width: 96px; height: 48px; top: 10px; animation-duration: 70s; animation-delay: -35s; }
+  @keyframes cloudMove { from { left: 110%; } to { left: -200px; } }
+
+  .ground-strip {
+    position: fixed; bottom: 0; left: 0; width: 100%; z-index: 0;
+    height: 40px; background: var(--ground); border-top: 6px solid var(--white);
+    display: flex; align-items: center;
+  }
+  .ground-tile { width: 40px; height: 34px; flex-shrink: 0; background: var(--ground); border-right: 2px solid var(--ground2); }
+
+  .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 600px; z-index: 1; padding: 16px; }
+  .screen.active { display: flex; }
+
+  .status-bar {
+    width: 100%; max-width: 600px; z-index: 10;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: var(--sky2); border-bottom: 4px solid var(--text-dark);
+    font-size: .45rem; color: var(--white); position: sticky; top: 0;
+  }
+  .stat-group { display: flex; flex-direction: column; gap: 4px; }
+  .stat-label { color: #aaccff; font-size: .4rem; }
+  .stat-val { font-size: .6rem; }
+  .lives { display: flex; gap: 4px; font-size: .8rem; }
+  .coin-icon { color: var(--coin); }
+  .star-power {
+    background: linear-gradient(135deg, #f8c42a, #ff8c00);
+    color: #000; padding: 3px 8px; font-size: .4rem; border: 2px solid #000;
+    display: none; animation: starPulse .4s ease infinite alternate;
+  }
+  @keyframes starPulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+
+  .title-block {
+    margin-top: 32px; background: var(--block); border: 4px solid var(--text-dark);
+    padding: 16px 24px; position: relative; box-shadow: 4px 4px 0 var(--block-dark); text-align: center;
+  }
+  .title-block::before { content: '?'; position: absolute; top: -28px; left: 50%; transform: translateX(-50%); font-size: 1.2rem; color: var(--white); }
+  .game-title { font-size: 1.1rem; color: var(--white); text-shadow: 3px 3px 0 var(--text-dark); line-height: 1.6; }
+  .game-title span { color: var(--coin); }
+
+  .mario-sprite { font-size: 3rem; margin: 16px 0; animation: marioBounce .5s ease infinite alternate; display: block; }
+  @keyframes marioBounce { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+
+  .subtitle-box {
+    background: var(--text-dark); border: 4px solid var(--white);
+    padding: 10px 16px; margin: 12px 0;
+    font-size: .45rem; color: var(--white); line-height: 2; text-align: center;
+  }
+  .subtitle-box .highlight { color: var(--coin); }
+  .subtitle-box .hp { color: #ff8888; }
+
+  .pipes { display: flex; gap: 20px; margin-top: 16px; }
+  .pipe { width: 36px; display: flex; flex-direction: column; align-items: center; }
+  .pipe-top { width: 44px; height: 12px; background: var(--pipe); border: 3px solid var(--text-dark); border-bottom: none; }
+  .pipe-body { width: 36px; height: 30px; background: var(--pipe); border: 3px solid var(--text-dark); border-top: 3px solid var(--pipe-dark); }
+
+  .px-input {
+    width: 100%; margin-top: 16px;
+    background: var(--text-dark); border: 4px solid var(--white);
+    color: var(--white); font-family: 'Press Start 2P', monospace;
+    font-size: .6rem; padding: 12px 16px; outline: none;
+  }
+  .px-input::placeholder { color: #667; }
+  .px-input:focus { border-color: var(--coin); }
+
+  .px-btn {
+    width: 100%; margin-top: 12px;
+    background: var(--green); border: 4px solid var(--text-dark);
+    color: var(--white); font-family: 'Press Start 2P', monospace;
+    font-size: .65rem; padding: 14px; cursor: pointer;
+    box-shadow: 4px 4px 0 var(--text-dark); transition: transform .1s, box-shadow .1s;
+  }
+  .px-btn:hover { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--text-dark); }
+  .px-btn:active { transform: translate(4px,4px); box-shadow: 0 0 0 var(--text-dark); }
+  .px-btn:disabled { background: #666; cursor: not-allowed; }
+
+  .q-level-tag { font-size: .45rem; color: var(--coin); margin-top: 20px; margin-bottom: 8px; text-shadow: 2px 2px 0 var(--text-dark); }
+
+  .q-block {
+    width: 100%; background: var(--block); border: 4px solid var(--text-dark);
+    box-shadow: 4px 4px 0 var(--block-dark); padding: 18px 16px 14px;
+    position: relative; margin-bottom: 12px;
+    animation: blockIn .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes blockIn { from { transform: scale(.92); opacity:0; } to { transform: scale(1); opacity:1; } }
+  .q-mark {
+    position: absolute; top: -18px; left: 12px;
+    background: var(--block-dark); border: 3px solid var(--text-dark);
+    color: var(--coin); font-size: .7rem; padding: 2px 8px;
+  }
+  .q-text { font-size: .62rem; color: var(--white); line-height: 2; text-shadow: 1px 1px 0 var(--text-dark); }
+
+  .timer-wrap { width: 100%; margin-bottom: 10px; }
+  .timer-label { font-size: .4rem; color: var(--white); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .timer-bar { width: 100%; height: 12px; background: var(--text-dark); border: 2px solid var(--white); }
+  .timer-fill { height: 100%; background: var(--green); transition: width .9s linear, background .3s; }
+
+  .options { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+  .opt {
+    width: 100%; padding: 12px 14px; background: var(--white); border: 4px solid var(--text-dark);
+    box-shadow: 4px 4px 0 var(--text-dark); font-family: 'Press Start 2P', monospace; font-size: .52rem;
+    color: var(--text-dark); cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 10px; transition: transform .1s, box-shadow .1s;
+  }
+  .opt:hover { transform: translate(2px,2px); box-shadow: 2px 2px 0 var(--text-dark); }
+  .opt .opt-key {
+    background: var(--text-dark); color: var(--white);
+    padding: 4px 7px; font-size: .5rem; flex-shrink: 0;
+  }
+  .opt.correct { background: var(--correct); color: var(--white); border-color: #1a6a1a; }
+  .opt.correct .opt-key { background: #1a6a1a; }
+  .opt.wrong   { background: var(--wrong);   color: var(--white); border-color: #7a1010; }
+  .opt.wrong .opt-key   { background: #7a1010; }
+  .opt.ghost   { opacity: .4; pointer-events: none; }
+  .opt.disabled { pointer-events: none; }
+
+  .floater {
+    position: fixed; pointer-events: none; z-index: 99;
+    font-family: 'Press Start 2P', monospace; font-size: .7rem;
+    color: var(--coin); text-shadow: 2px 2px 0 var(--text-dark);
+    animation: floatUp 1s ease forwards;
+  }
+  @keyframes floatUp { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-80px); opacity: 0; } }
+
+  .feedback {
+    font-size: .5rem; color: var(--white); text-align: center;
+    margin-top: 10px; min-height: 1.8em; line-height: 1.8; text-shadow: 1px 1px 0 var(--text-dark);
+  }
+  .feedback.good { color: var(--coin); }
+  .feedback.bad  { color: #ffaaaa; }
+
+  #screen-result { text-align: center; }
+  .result-banner {
+    margin-top: 24px; background: var(--block); border: 4px solid var(--text-dark);
+    box-shadow: 6px 6px 0 var(--block-dark); padding: 20px; width: 100%;
+  }
+  .result-title { font-size: .9rem; color: var(--white); text-shadow: 3px 3px 0 var(--text-dark); margin-bottom: 8px; }
+  .result-name  { font-size: .6rem; color: var(--coin); margin-bottom: 16px; }
+  .score-display {
+    background: var(--text-dark); border: 4px solid var(--white);
+    padding: 14px; margin: 12px 0; display: inline-block;
+  }
+  .score-num { font-size: 2rem; color: var(--coin); display: block; text-shadow: 3px 3px 0 #a07000; }
+  .score-label { font-size: .45rem; color: #aaa; }
+  .coins-earned { font-size: .65rem; color: var(--coin); margin: 8px 0; }
+  .grade-tag {
+    display: inline-block; background: var(--green); border: 3px solid var(--text-dark);
+    padding: 6px 12px; font-size: .55rem; color: var(--white); margin-bottom: 12px;
+    box-shadow: 3px 3px 0 var(--text-dark);
+  }
+  .share-box {
+    background: var(--text-dark); border: 3px solid var(--white);
+    padding: 12px; margin: 12px 0; font-size: .42rem; color: var(--white);
+    line-height: 2; text-align: left;
+  }
+  .share-box strong { color: var(--coin); display: block; margin-bottom: 6px; }
+
+  .sending-badge {
+    font-size: .38rem; color: #aaccff; text-align: center; margin-top: 6px; min-height: 1.4em;
+  }
+
+  .gameover-box {
+    background: var(--red); border: 4px solid var(--text-dark);
+    box-shadow: 6px 6px 0 #7a0000; padding: 20px; width: 100%; text-align: center; margin-top: 24px;
+  }
+  .gameover-title { font-size: 1.4rem; color: var(--white); text-shadow: 4px 4px 0 #7a0000; margin-bottom: 8px; }
+
+  .lb-wrap { width: 100%; margin-top: 16px; }
+  .lb-title { font-size: .5rem; color: var(--coin); text-shadow: 2px 2px 0 var(--text-dark); margin-bottom: 10px; }
+  .lb-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; margin-bottom: 6px;
+    background: var(--text-dark); border: 3px solid var(--white);
+    font-size: .42rem; color: var(--white);
+  }
+  .lb-row.me { border-color: var(--coin); }
+  .lb-rank { width: 24px; color: var(--coin); text-align: center; }
+  .lb-name { flex: 1; }
+  .lb-score { color: var(--coin); }
+
+  .streak-banner {
+    font-size: .5rem; color: var(--coin); text-align: center;
+    text-shadow: 2px 2px 0 var(--text-dark); min-height: 1em; margin-bottom: 4px;
+  }
+
+  @media (max-width: 420px) {
+    .game-title { font-size: .85rem; }
+    .q-text { font-size: .55rem; }
+    .opt { font-size: .47rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="clouds" aria-hidden="true">
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+</div>
+
+<div class="status-bar" id="status-bar" style="display:none">
+  <div class="stat-group">
+    <span class="stat-label">PLAYER</span>
+    <span class="stat-val" id="sb-name">—</span>
+  </div>
+  <div class="stat-group" style="align-items:center">
+    <span class="stat-label">LIVES</span>
+    <div class="lives" id="sb-lives">❤️❤️❤️</div>
+  </div>
+  <div class="stat-group" style="align-items:center">
+    <span class="stat-label">COINS</span>
+    <span class="stat-val coin-icon" id="sb-coins">🪙 0</span>
+  </div>
+  <div class="star-power" id="star-power">⭐ STAR!</div>
+</div>
+
+<!-- INTRO -->
+<div id="screen-intro" class="screen active">
+  <div class="title-block">
+    <div class="game-title">🧬 AI <span>QUEST</span></div>
+  </div>
+  <span class="mario-sprite">🤖</span>
+  <div class="subtitle-box">
+    <span class="highlight">15 QUESTIONS</span> · AI BASICS + PLATFORMS<br>
+    <span class="hp">3 LIVES</span> · COLLECT COINS · STREAK BONUSES<br>
+    ⭐ STAR POWER ON 3x STREAK!
+  </div>
+  <div class="pipes">
+    <div class="pipe"><div class="pipe-top"></div><div class="pipe-body"></div></div>
+    <div class="pipe"><div class="pipe-top"></div><div class="pipe-body"></div></div>
+    <div class="pipe"><div class="pipe-top"></div><div class="pipe-body"></div></div>
+  </div>
+  <input id="name-input" class="px-input" type="text" placeholder="ENTER YOUR NAME..." maxlength="20" autocomplete="off"/>
+  <button class="px-btn" id="start-btn" onclick="startGame()" disabled>▶ PRESS START</button>
+</div>
+
+<!-- QUIZ -->
+<div id="screen-quiz" class="screen">
+  <div class="q-level-tag" id="q-level-tag">WORLD 1-1</div>
+  <div class="streak-banner" id="streak-banner"></div>
+  <div class="timer-wrap">
+    <div class="timer-label"><span>⏱ TIME</span><span id="timer-num">20</span></div>
+    <div class="timer-bar"><div class="timer-fill" id="timer-fill" style="width:100%"></div></div>
+  </div>
+  <div class="q-block" id="q-block">
+    <div class="q-mark">?</div>
+    <div class="q-text" id="q-text">Loading...</div>
+  </div>
+  <div class="options" id="options"></div>
+  <div class="feedback" id="feedback"></div>
+</div>
+
+<!-- RESULT -->
+<div id="screen-result" class="screen">
+  <div class="result-banner">
+    <div class="result-title" id="result-title">YOU WIN!</div>
+    <div class="result-name" id="result-name"></div>
+    <div class="score-display">
+      <span class="score-num" id="final-score">0</span>
+      <span class="score-label">/ 15 CORRECT</span>
+    </div>
+    <div class="coins-earned" id="coins-display">🪙 0 COINS</div>
+    <div class="grade-tag" id="grade-tag">NICE!</div>
+  </div>
+  <div class="share-box">
+    <strong>📣 SHARE YOUR SCORE:</strong>
+    <span id="share-text"></span>
+  </div>
+  <button class="px-btn" onclick="copyScore()">📋 COPY SCORE</button>
+  <button class="px-btn" style="background:#8844cc;margin-top:8px" onclick="restartGame()">↩ PLAY AGAIN</button>
+  <div class="sending-badge" id="sending-badge"></div>
+  <div class="lb-wrap">
+    <div class="lb-title">🏆 LEADERBOARD</div>
+    <div id="leaderboard"></div>
+    <p style="font-size:.35rem;color:#aaccff;text-align:center;margin-top:8px;line-height:1.8">Results saved to Google Sheets automatically!</p>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="screen-gameover" class="screen">
+  <div class="gameover-box">
+    <div class="gameover-title">GAME<br>OVER</div>
+    <div style="font-size:.55rem;color:#fcc;margin-top:12px" id="go-name"></div>
+    <div style="font-size:.5rem;color:#fff;margin-top:8px" id="go-score"></div>
+    <div style="font-size:.5rem;color:var(--coin);margin-top:6px" id="go-coins"></div>
+  </div>
+  <button class="px-btn" style="margin-top:16px" onclick="restartGame()">↩ TRY AGAIN</button>
+</div>
+
+<div class="ground-strip" aria-hidden="true">
+  <div class="ground-tile"></div><div class="ground-tile"></div><div class="ground-tile"></div>
+  <div class="ground-tile"></div><div class="ground-tile"></div><div class="ground-tile"></div>
+  <div class="ground-tile"></div><div class="ground-tile"></div><div class="ground-tile"></div>
+  <div class="ground-tile"></div><div class="ground-tile"></div><div class="ground-tile"></div>
+</div>
+
+<script>
+// ── Config — paste your Apps Script URL here after deploying ─────────────
+const SHEETS_URL = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE';
+
+// ── Questions ─────────────────────────────────────────────────────────────
+const QUESTIONS = [
+  // ── WORLD 1: AI Basics ──────────────────────────────────────────────
+  {
+    world: "WORLD 1-1 · BASICS",
+    text: "What does \"AI\" stand for?",
+    opts: ["Automated Internet", "Artificial Intelligence", "Advanced Interface", "Algorithmic Integration"],
+    answer: 1,
+    explanation: "AI = Artificial Intelligence — systems that mimic human thinking!"
+  },
+  {
+    world: "WORLD 1-2 · BASICS",
+    text: "What do you call the text you send to ask an AI a question?",
+    opts: ["A query string", "A prompt", "A command line", "An input file"],
+    answer: 1,
+    explanation: "It's called a PROMPT. Better prompts = better answers!"
+  },
+  {
+    world: "WORLD 1-3 · BASICS",
+    text: "When an AI confidently gives you wrong or made-up info, it's called a...",
+    opts: ["Glitch", "Bug", "Hallucination", "Timeout"],
+    answer: 2,
+    explanation: "AI Hallucination — the model makes things up with confidence. Always verify!"
+  },
+  {
+    world: "WORLD 1-4 · BASICS",
+    text: "What does \"LLM\" stand for?",
+    opts: ["Large Language Model", "Local Learning Machine", "Long Logic Module", "Linked List Method"],
+    answer: 0,
+    explanation: "LLM = Large Language Model — the engine behind ChatGPT, Claude, Gemini etc."
+  },
+  {
+    world: "WORLD 1-5 · BASICS",
+    text: "Which of these is NOT an AI assistant?",
+    opts: ["Siri", "Alexa", "Firefox", "Gemini"],
+    answer: 2,
+    explanation: "Firefox is a web browser. Siri, Alexa & Gemini are all AI assistants!"
+  },
+  // ── WORLD 2: Platforms ───────────────────────────────────────────────
+  {
+    world: "WORLD 2-1 · PLATFORMS",
+    text: "Which company makes Claude?",
+    opts: ["OpenAI", "Google", "Anthropic", "Meta"],
+    answer: 2,
+    explanation: "Claude is made by Anthropic — a safety-focused AI lab founded in 2021."
+  },
+  {
+    world: "WORLD 2-2 · PLATFORMS",
+    text: "ChatGPT is made by which company?",
+    opts: ["Microsoft", "OpenAI", "Google", "Apple"],
+    answer: 1,
+    explanation: "ChatGPT is made by OpenAI, launched in November 2022."
+  },
+  {
+    world: "WORLD 2-3 · PLATFORMS",
+    text: "GPT stands for...",
+    opts: ["General Purpose Technology", "Graphics Processing Thread", "Generative Pre-trained Transformer", "Global Processing Tool"],
+    answer: 2,
+    explanation: "GPT = Generative Pre-trained Transformer — the architecture behind many modern AI models."
+  },
+  {
+    world: "WORLD 2-4 · PLATFORMS",
+    text: "What is a \"surface\" in AI platform architecture?",
+    opts: ["The UI color scheme", "Any entry point where you interact with an AI model", "The cloud server running the model", "The training dataset"],
+    answer: 1,
+    explanation: "A surface = any entry point: chat, CLI, IDE, API — where you talk to the model."
+  },
+  {
+    world: "WORLD 2-5 · PLATFORMS",
+    text: "Claude Code is to Anthropic as _______ is to OpenAI (CLI agent)?",
+    opts: ["ChatGPT", "Codex CLI", "Cursor", "AI Studio"],
+    answer: 1,
+    explanation: "Codex CLI is OpenAI's terminal agent — the equivalent of Claude Code on their platform."
+  },
+  // ── WORLD 3: Skills · MCP · Hooks ────────────────────────────────────
+  {
+    world: "WORLD 3-1 · SKILLS",
+    text: "What is a \"skill\" in an AI platform like Claude Code?",
+    opts: [
+      "A hardware accelerator chip",
+      "A bundle of instructions for one job, loaded only when needed",
+      "A database of past conversations",
+      "A fine-tuned version of the model"
+    ],
+    answer: 1,
+    explanation: "Skills = packaged know-how on a shelf, pulled down only when the task needs them!"
+  },
+  {
+    world: "WORLD 3-2 · MCP",
+    text: "MCP stands for...",
+    opts: ["Multi-Cloud Protocol", "Model Context Protocol", "Machine Communication Protocol", "Managed Compute Platform"],
+    answer: 1,
+    explanation: "MCP = Model Context Protocol — an open standard created by Anthropic."
+  },
+  {
+    world: "WORLD 3-3 · MCP",
+    text: "Before MCP, connecting AI platforms to external tools meant...",
+    opts: [
+      "One universal adapter for everything",
+      "Custom glue code for every platform+tool pair",
+      "Waiting for a vendor to build it",
+      "Retraining the model each time"
+    ],
+    answer: 1,
+    explanation: "N integrations × M platforms = tons of custom code. MCP solves this with one standard!"
+  },
+  {
+    world: "WORLD 3-4 · HOOKS",
+    text: "\"Hooks\" in an AI platform fire...",
+    opts: [
+      "Only when the AI model decides to call them",
+      "Only when the user types a trigger keyword",
+      "Automatically at lifecycle events — always, guaranteed",
+      "Only when the session runs out of tokens"
+    ],
+    answer: 2,
+    explanation: "Skills & Tools = model's choice. Hooks = YOUR guarantee — they always fire!"
+  },
+  {
+    world: "WORLD 3-5 · BOSS",
+    text: "Which statement about AI platform primitives is TRUE?",
+    opts: [
+      "Each AI brand has completely unique building blocks",
+      "Only Claude supports MCP",
+      "Skills, Tools, MCP & Hooks appear across all major platforms — just with different names",
+      "Hooks replace the need for Skills"
+    ],
+    answer: 2,
+    explanation: "The vocabulary changes across brands, but the anatomy is the same — that's the DNA of AI!"
+  }
+];
+
+const WORLDS_COUNT = QUESTIONS.length;
+
+const GRADES = [
+  { min: 15, tag: "🌟 FLAWLESS!",       title: "PERFECT VICTORY!" },
+  { min: 12, tag: "⭐ AI ARCHITECT",     title: "OUTSTANDING!" },
+  { min: 9,  tag: "🍄 SOLID PLAYER",    title: "GREAT JOB!" },
+  { min: 6,  tag: "🐢 GETTING THERE",   title: "NOT BAD!" },
+  { min: 0,  tag: "🌱 KEEP LEARNING",   title: "NICE TRY!" }
+];
+
+// ── Audio ─────────────────────────────────────────────────────────────────
+const AC = new (window.AudioContext || window.webkitAudioContext)();
+function beep(freq, type, dur, vol=0.3, delay=0) {
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.connect(g); g.connect(AC.destination);
+  o.type = type; o.frequency.setValueAtTime(freq, AC.currentTime + delay);
+  g.gain.setValueAtTime(vol, AC.currentTime + delay);
+  g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + delay + dur);
+  o.start(AC.currentTime + delay);
+  o.stop(AC.currentTime + delay + dur + 0.01);
+}
+function playCoin()    { beep(988,'square',.06); beep(1319,'square',.12,.3,.06); }
+function playCorrect() { [523,659,784,1047].forEach((f,i)=>beep(f,'square',.1,.25,i*.08)); }
+function playWrong()   { beep(220,'sawtooth',.08); beep(180,'sawtooth',.15,.3,.08); beep(130,'sawtooth',.2,.3,.2); }
+function playStar()    { [784,988,1175,1319,1568].forEach((f,i)=>beep(f,'square',.08,.3,i*.06)); }
+function playGameOver(){ [392,330,294,247,220].forEach((f,i)=>beep(f,'square',.22,.4,i*.22)); }
+function playVictory() { [523,659,784,659,784,1047].forEach((f,i)=>beep(f,'square',.12,.3,i*.12)); }
+
+// ── State ─────────────────────────────────────────────────────────────────
+let playerName='', currentQ=0, lives=3, coins=0, streak=0, correctCount=0;
+let starMode=false, answered=false, timerInterval=null, timeLeft=20;
+
+// ── Input gate ────────────────────────────────────────────────────────────
+document.getElementById('name-input').addEventListener('input', e => {
+  document.getElementById('start-btn').disabled = e.target.value.trim().length === 0;
+});
+document.getElementById('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.value.trim()) startGame();
+});
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame() {
+  if (AC.state === 'suspended') AC.resume();
+  playerName = document.getElementById('name-input').value.trim();
+  if (!playerName) return;
+  currentQ=0; lives=3; coins=0; streak=0; correctCount=0; starMode=false;
+  document.getElementById('status-bar').style.display = 'flex';
+  updateStatusBar();
+  show('screen-quiz');
+  renderQuestion();
+}
+
+function updateStatusBar() {
+  document.getElementById('sb-name').textContent = playerName.substring(0,10);
+  document.getElementById('sb-lives').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3-lives);
+  document.getElementById('sb-coins').textContent = `🪙 ${coins}`;
+  document.getElementById('star-power').style.display = starMode ? 'block' : 'none';
+}
+
+function renderQuestion() {
+  answered = false;
+  const q = QUESTIONS[currentQ];
+  document.getElementById('q-level-tag').textContent = q.world;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  updateStreak();
+
+  const block = document.getElementById('q-block');
+  block.style.animation = 'none';
+  void block.offsetWidth;
+  block.style.animation = '';
+
+  const optEl = document.getElementById('options');
+  optEl.innerHTML = '';
+  const keys = ['A','B','C','D'];
+  q.opts.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'opt';
+    div.innerHTML = `<span class="opt-key">${keys[i]}</span><span>${opt}</span>`;
+    div.onclick = () => selectAnswer(i, div);
+    optEl.appendChild(div);
+  });
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timeLeft = 20;
+  updateTimerUI();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) { clearInterval(timerInterval); if (!answered) timeUp(); }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  document.getElementById('timer-num').textContent = timeLeft;
+  const fill = document.getElementById('timer-fill');
+  fill.style.width = `${(timeLeft/20)*100}%`;
+  fill.style.background = timeLeft<=5 ? '#d03020' : timeLeft<=10 ? '#e8a634' : '#3cb83c';
+}
+
+function selectAnswer(idx, el) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+  const q = QUESTIONS[currentQ];
+  const opts = document.querySelectorAll('.opt');
+  opts.forEach(o => { o.classList.add('disabled','ghost'); });
+  el.classList.remove('ghost');
+  const fb = document.getElementById('feedback');
+
+  if (idx === q.answer) {
+    el.classList.add('correct');
+    streak++; correctCount++;
+    const bonus = starMode ? 200 : (streak>=3 ? 150 : 100);
+    const timeBonus = Math.floor(timeLeft * (starMode ? 6 : 3));
+    coins += bonus + timeBonus;
+    updateStatusBar();
+    playCorrect();
+    if (streak===3 && !starMode) { starMode=true; playStar(); updateStatusBar(); }
+    spawnFloater(`+${bonus+timeBonus}🪙`, el);
+    fb.textContent = '✓ ' + q.explanation;
+    fb.className = 'feedback good';
+  } else {
+    el.classList.add('wrong');
+    opts[q.answer].classList.add('correct'); opts[q.answer].classList.remove('ghost');
+    streak=0; starMode=false; lives--;
+    updateStatusBar(); playWrong();
+    fb.textContent = '✗ ' + q.explanation;
+    fb.className = 'feedback bad';
+    if (lives<=0) { setTimeout(showGameOver, 2200); return; }
+  }
+  setTimeout(nextQuestion, 2200);
+}
+
+function timeUp() {
+  answered=true;
+  const q = QUESTIONS[currentQ];
+  const opts = document.querySelectorAll('.opt');
+  opts.forEach(o => { o.classList.add('disabled','ghost'); });
+  opts[q.answer].classList.add('correct'); opts[q.answer].classList.remove('ghost');
+  streak=0; starMode=false; lives--;
+  updateStatusBar(); playWrong();
+  document.getElementById('feedback').textContent = '⏰ Time\'s up! ' + q.explanation;
+  document.getElementById('feedback').className = 'feedback bad';
+  if (lives<=0) { setTimeout(showGameOver, 2200); return; }
+  setTimeout(nextQuestion, 2400);
+}
+
+function nextQuestion() {
+  currentQ++;
+  if (currentQ >= QUESTIONS.length) showResult();
+  else renderQuestion();
+}
+
+function updateStreak() {
+  const banner = document.getElementById('streak-banner');
+  if (streak>=5) banner.textContent=`🔥 ${streak}x STREAK — UNSTOPPABLE!`;
+  else if (streak>=3) banner.textContent=`⭐ ${streak}x STREAK — STAR POWER!`;
+  else if (streak>=2) banner.textContent=`🔥 ${streak}x STREAK — KEEP IT UP!`;
+  else banner.textContent='';
+}
+
+function spawnFloater(text, anchorEl) {
+  const rect = anchorEl.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'floater';
+  el.textContent = text;
+  el.style.left = `${rect.left+20}px`;
+  el.style.top  = `${rect.top-10}px`;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 1100);
+}
+
+function showResult() {
+  clearInterval(timerInterval);
+  document.getElementById('status-bar').style.display = 'none';
+  show('screen-result');
+  playVictory();
+
+  const g = GRADES.find(gr => correctCount >= gr.min) || GRADES[GRADES.length-1];
+  document.getElementById('result-title').textContent = g.title;
+  document.getElementById('result-name').textContent = playerName.toUpperCase();
+  document.getElementById('final-score').textContent = correctCount;
+  document.getElementById('coins-display').textContent = `🪙 ${coins} COINS COLLECTED`;
+  document.getElementById('grade-tag').textContent = g.tag;
+
+  const shareText = `${g.tag} ${playerName} scored ${correctCount}/15 with 🪙${coins} coins on AI Quest!`;
+  document.getElementById('share-text').textContent = shareText;
+
+  saveScore(playerName, correctCount, coins, g.tag, true);
+  renderLeaderboard();
+  postScore(playerName, correctCount, coins, g.tag, true);
+}
+
+function showGameOver() {
+  clearInterval(timerInterval);
+  document.getElementById('status-bar').style.display = 'none';
+  playGameOver();
+  document.getElementById('go-name').textContent = playerName.toUpperCase();
+  document.getElementById('go-score').textContent = `REACHED ${QUESTIONS[currentQ]?.world || 'GAME OVER'}`;
+  document.getElementById('go-coins').textContent = `🪙 ${coins} COINS COLLECTED`;
+  const g = GRADES.find(gr => correctCount >= gr.min) || GRADES[GRADES.length-1];
+  saveScore(playerName, correctCount, coins, g.tag, false);
+  postScore(playerName, correctCount, coins, g.tag, false);
+  show('screen-gameover');
+}
+
+function copyScore() {
+  const txt = document.getElementById('share-text').textContent;
+  navigator.clipboard.writeText(txt).then(()=>{
+    const btn = event.target;
+    btn.textContent='✅ COPIED!';
+    setTimeout(()=>btn.textContent='📋 COPY SCORE', 2000);
+  });
+}
+
+function restartGame() {
+  clearInterval(timerInterval);
+  document.getElementById('status-bar').style.display='none';
+  show('screen-intro');
+  document.getElementById('name-input').value='';
+  document.getElementById('start-btn').disabled=true;
+}
+
+// ── Google Sheets submission ───────────────────────────────────────────────
+function postScore(name, correct, c, grade, completed) {
+  const badge = document.getElementById('sending-badge');
+  if (!SHEETS_URL || SHEETS_URL.startsWith('PASTE_')) {
+    if (badge) badge.textContent = '';
+    return;
+  }
+  if (badge) badge.textContent = '📡 Sending to leaderboard...';
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name, correct, coins: c, grade,
+      completed, total: QUESTIONS.length,
+      timestamp: new Date().toISOString()
+    })
+  })
+  .then(()=>{ if (badge) badge.textContent = '✅ Score saved to leaderboard!'; })
+  .catch(()=>{ if (badge) badge.textContent = '⚠ Could not reach leaderboard.'; });
+}
+
+// ── Local leaderboard (localStorage) ─────────────────────────────────────
+function saveScore(name, correct, c, grade, completed) {
+  const key = 'ai_quest_scores';
+  let scores = JSON.parse(localStorage.getItem(key) || '[]');
+  scores.push({ name, correct, coins: c, grade, completed, ts: Date.now() });
+  scores.sort((a,b) => b.coins - a.coins || b.correct - a.correct || a.ts - b.ts);
+  localStorage.setItem(key, JSON.stringify(scores.slice(0,20)));
+}
+
+function renderLeaderboard() {
+  const key = 'ai_quest_scores';
+  const scores = JSON.parse(localStorage.getItem(key) || '[]');
+  const lb = document.getElementById('leaderboard');
+  if (!scores.length) { lb.innerHTML='<p style="font-size:.4rem;color:#aaccff;text-align:center">No scores yet.</p>'; return; }
+  const medals = ['🥇','🥈','🥉'];
+  lb.innerHTML = scores.slice(0,8).map((s,i) => {
+    const isMe = s.name===playerName && s.coins===coins;
+    return `<div class="lb-row ${isMe?'me':''}">
+      <span class="lb-rank">${medals[i]||(i+1)}</span>
+      <span class="lb-name">${s.name}${isMe?' ◄':''}</span>
+      <span class="lb-score">🪙${s.coins}</span>
+    </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
