@@ -342,15 +342,8 @@
 </div>
 
 <script>
-// ── Config — fill these in after creating your Google Form ────────────────
-// FORM_ACTION: take your form's share URL and replace /viewform with /formResponse
-//   e.g. https://docs.google.com/forms/d/e/1FAIpQLSe.../formResponse
-// ENTRY_IDs: open the live form, right-click each field → Inspect → find name="entry.XXXXXXX"
-const FORM_ACTION = '';   // paste formResponse URL here
-const ENTRY_NAME  = '';   // e.g. 'entry.123456789'
-const ENTRY_SCORE = '';   // e.g. 'entry.234567890'
-const ENTRY_COINS = '';   // e.g. 'entry.345678901'
-const ENTRY_GRADE = '';   // e.g. 'entry.456789012'
+// ── Config — paste your Apps Script Web App URL here ─────────────────────
+const SHEETS_URL = 'PASTE_YOUR_APPS_SCRIPT_URL_HERE';
 
 // ── Questions ─────────────────────────────────────────────────────────────
 const QUESTIONS = [
@@ -716,23 +709,23 @@ function restartGame() {
   document.getElementById('start-btn').disabled=true;
 }
 
-// ── Google Forms submission (bypasses Workspace Script restrictions) ───────
+// ── Google Sheets submission via Apps Script ───────────────────────────────
 function postScore(name, correct, c, grade, completed) {
   const badge = document.getElementById('sending-badge');
-  if (!FORM_ACTION || !ENTRY_NAME) {
+  if (!SHEETS_URL || SHEETS_URL.startsWith('PASTE_')) {
     if (badge) badge.textContent = '';
     return;
   }
   if (badge) badge.textContent = '📡 Sending to leaderboard...';
-  const body = new URLSearchParams();
-  body.append(ENTRY_NAME,  name);
-  body.append(ENTRY_SCORE, String(correct) + '/' + QUESTIONS.length);
-  body.append(ENTRY_COINS, String(c));
-  body.append(ENTRY_GRADE, grade + (completed ? '' : ' (Game Over)'));
-  fetch(FORM_ACTION, {
+  fetch(SHEETS_URL, {
     method: 'POST',
     mode: 'no-cors',
-    body
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({
+      name, correct, coins: c, grade,
+      completed, total: QUESTIONS.length,
+      timestamp: new Date().toISOString()
+    })
   })
   .then(() => { if (badge) badge.textContent = '✅ Score saved to leaderboard!'; })
   .catch(() => { if (badge) badge.textContent = '⚠ Could not reach leaderboard.'; });
