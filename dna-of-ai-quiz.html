@@ -508,6 +508,7 @@ function playVictory() { [523,659,784,659,784,1047].forEach((f,i)=>beep(f,'squar
 // ── State ─────────────────────────────────────────────────────────────────
 let playerName='', currentQ=0, lives=3, coins=0, streak=0, correctCount=0;
 let starMode=false, answered=false, timerInterval=null, timeLeft=20;
+let answers=[];  // [{q, chosen, correct, result}] one entry per question
 
 // ── Input gate ────────────────────────────────────────────────────────────
 document.getElementById('name-input').addEventListener('input', e => {
@@ -526,7 +527,7 @@ function startGame() {
   if (AC.state === 'suspended') AC.resume();
   playerName = document.getElementById('name-input').value.trim();
   if (!playerName) return;
-  currentQ=0; lives=3; coins=0; streak=0; correctCount=0; starMode=false;
+  currentQ=0; lives=3; coins=0; streak=0; correctCount=0; starMode=false; answers=[];
   document.getElementById('status-bar').style.display = 'flex';
   updateStatusBar();
   show('screen-quiz');
@@ -595,6 +596,7 @@ function selectAnswer(idx, el) {
   el.classList.remove('ghost');
   const fb = document.getElementById('feedback');
 
+  const keys = ['A','B','C','D'];
   if (idx === q.answer) {
     el.classList.add('correct');
     streak++; correctCount++;
@@ -607,6 +609,7 @@ function selectAnswer(idx, el) {
     spawnFloater(`+${bonus+timeBonus}🪙`, el);
     fb.textContent = '✓ ' + q.explanation;
     fb.className = 'feedback good';
+    answers.push({ q: currentQ, chosen: keys[idx], correct: keys[q.answer], result: 'C' });
   } else {
     el.classList.add('wrong');
     opts[q.answer].classList.add('correct'); opts[q.answer].classList.remove('ghost');
@@ -614,6 +617,7 @@ function selectAnswer(idx, el) {
     updateStatusBar(); playWrong();
     fb.textContent = '✗ ' + q.explanation;
     fb.className = 'feedback bad';
+    answers.push({ q: currentQ, chosen: keys[idx], correct: keys[q.answer], result: 'W' });
     if (lives<=0) { setTimeout(showGameOver, 2200); return; }
   }
   setTimeout(nextQuestion, 2200);
@@ -629,6 +633,7 @@ function timeUp() {
   updateStatusBar(); playWrong();
   document.getElementById('feedback').textContent = '⏰ Time\'s up! ' + q.explanation;
   document.getElementById('feedback').className = 'feedback bad';
+  answers.push({ q: currentQ, chosen: '-', correct: ['A','B','C','D'][q.answer], result: 'T' });
   if (lives<=0) { setTimeout(showGameOver, 2200); return; }
   setTimeout(nextQuestion, 2400);
 }
@@ -717,10 +722,13 @@ function postScore(name, correct, c, grade, completed) {
     return;
   }
   if (badge) badge.textContent = '📡 Sending to leaderboard...';
+  // encode each answer as "result:chosen:correct" e.g. "C:B:B" or "W:A:C" or "T:-:B"
+  const answerStr = answers.map(a => `${a.result}:${a.chosen}:${a.correct}`).join(',');
   const url = SHEETS_URL + '?' + new URLSearchParams({
     name, correct, coins: c, grade,
     completed: completed ? 'Yes' : 'No',
-    total: QUESTIONS.length
+    total: QUESTIONS.length,
+    answers: answerStr
   });
   fetch(url, { mode: 'no-cors' })
     .then(() => { if (badge) badge.textContent = '✅ Score saved to leaderboard!'; })
