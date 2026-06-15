@@ -709,7 +709,7 @@ function restartGame() {
   document.getElementById('start-btn').disabled=true;
 }
 
-// ── Google Sheets submission via Apps Script ───────────────────────────────
+// ── Google Sheets submission via Apps Script (GET + params, avoids no-cors body issues) ──
 function postScore(name, correct, c, grade, completed) {
   const badge = document.getElementById('sending-badge');
   if (!SHEETS_URL || SHEETS_URL.startsWith('PASTE_')) {
@@ -717,18 +717,14 @@ function postScore(name, correct, c, grade, completed) {
     return;
   }
   if (badge) badge.textContent = '📡 Sending to leaderboard...';
-  fetch(SHEETS_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify({
-      name, correct, coins: c, grade,
-      completed, total: QUESTIONS.length,
-      timestamp: new Date().toISOString()
-    })
-  })
-  .then(() => { if (badge) badge.textContent = '✅ Score saved to leaderboard!'; })
-  .catch(() => { if (badge) badge.textContent = '⚠ Could not reach leaderboard.'; });
+  const url = SHEETS_URL + '?' + new URLSearchParams({
+    name, correct, coins: c, grade,
+    completed: completed ? 'Yes' : 'No',
+    total: QUESTIONS.length
+  });
+  fetch(url, { mode: 'no-cors' })
+    .then(() => { if (badge) badge.textContent = '✅ Score saved to leaderboard!'; })
+    .catch(() => { if (badge) badge.textContent = '⚠ Could not reach leaderboard.'; });
 }
 
 // ── Local leaderboard (localStorage) ─────────────────────────────────────
